@@ -1,4 +1,5 @@
-Atualiza para Versão 2.0: Adiciona sistema de transição, save/load e expansão da história// Desenvolvedor: TheFlow English School
+// Atualiza para Versão 2.0: Adiciona sistema de transição, save/load e expansão da história
+// Desenvolvedor: TheFlow English School
 // Narrativa: Uma jornada científica que desafia a razão
 
 const canvas = document.getElementById('gameCanvas');
@@ -19,6 +20,7 @@ const game = {
   state: GAME_STATE.MENU,
   scene: 0,
   dialog: 0,
+  choiceIndex: 0,  // NOVO: índice da seleção atual
   faith: 0,
   science: 0,
   playerX: 400,
@@ -47,7 +49,7 @@ const dialogues = [
     ]
   },
   {
-    title: 'MEMÓRIA - Jeru salém, 33 d.C.',
+    title: 'MEMÓRIA - Jerusalem, 33 d.C.',
     character: 'Mulher de Jer. (Sara vivenciando)',
     text: 'Seu rosto... não é como os pregadores descrevem... É uma dor infinita.',
     choices: [
@@ -85,30 +87,51 @@ const dialogues = [
   }
 ];
 
-// CONTROLE
+// CONTROLE DE ENTRADA
 window.addEventListener('keydown', (e) => {
   game.keys[e.key] = true;
-  if (game.state === GAME_STATE.CHOICE) handleChoice(e);
+  
+  // Se está no estado CHOICE, processa navegação das escolhas
+  if (game.state === GAME_STATE.CHOICE) {
+    const current = dialogues[game.dialog];
+    const numChoices = current.choices.length;
+    
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      game.choiceIndex = (game.choiceIndex - 1 + numChoices) % numChoices;
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      game.choiceIndex = (game.choiceIndex + 1) % numChoices;
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      handleChoice(game.choiceIndex);
+    }
+  }
 });
 
 window.addEventListener('keyup', (e) => {
   game.keys[e.key] = false;
 });
 
-function handleChoice(e) {
-  if (e.key === 'Enter' || e.key === ' ') {
-    const current = dialogues[game.dialog];
-    if (current.choices.length > 0) {
-      const choice = current.choices[0];
-      if (choice.action === 'science') game.science++;
-      if (choice.action === 'faith') game.faith++;
-      game.dialog = typeof choice.next === 'string' ? choice.next : choice.next;
-      game.state = GAME_STATE.DIALOG;
-    }
+// PROCESSA A ESCOLHA SELECIONADA
+function handleChoice(choiceIndex) {
+  const current = dialogues[game.dialog];
+  if (current.choices.length > choiceIndex) {
+    const choice = current.choices[choiceIndex];
+    
+    // Atualiza fé ou ciência
+    if (choice.action === 'science') game.science++;
+    if (choice.action === 'faith') game.faith++;
+    
+    // Move para próxima cena
+    game.dialog = typeof choice.next === 'string' ? choice.next : choice.next;
+    
+    // Reinicia o índice de seleção
+    game.choiceIndex = 0;
+    
+    // Vai para DIALOG (que depois detectará se há choices e entrará em CHOICE)
+    game.state = GAME_STATE.DIALOG;
   }
 }
 
-// RENDERIZAÇÃO
+// DESENHA O MENU
 function drawMenu() {
   ctx.fillStyle = '#0a0a0a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -133,23 +156,57 @@ function drawMenu() {
   ctx.fillText('a conhecia primeiro.', canvas.width / 2, 320);
 }
 
+// DESENHA O DIÁLOGO E OPÇÕES
 function drawDialog() {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-  ctx.fillRect(0, canvas.height - 150, canvas.width, 150);
+  ctx.fillRect(0, canvas.height - 200, canvas.width, 200);
   
   ctx.fillStyle = '#FFD700';
   ctx.font = 'bold 14px Arial';
-  ctx.fillText(dialogues[game.dialog].title, 20, canvas.height - 130);
+  ctx.fillText(dialogues[game.dialog].title, 20, canvas.height - 180);
   
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 16px Arial';
-  ctx.fillText(dialogues[game.dialog].character + ':', 20, canvas.height - 110);
+  ctx.fillText(dialogues[game.dialog].character + ':', 20, canvas.height - 160);
   
   ctx.font = '14px Arial';
-  ctx.fillText(dialogues[game.dialog].text, 20, canvas.height - 90);
-  ctx.fillText('\u25b6 Pressione ENTER para continuar', 20, canvas.height - 30);
+  ctx.fillText(dialogues[game.dialog].text, 20, canvas.height - 140);
+  
+  // NOVO: desenha as opções de escolha
+  drawChoices();
 }
 
+// NOVO: DESENHA AS OPÇÕES COM SELEÇÃO VISUAL
+function drawChoices() {
+  const current = dialogues[game.dialog];
+  if (!current.choices || current.choices.length === 0) return;
+  
+  const startY = canvas.height - 90;
+  const lineHeight = 30;
+  
+  for (let i = 0; i < current.choices.length; i++) {
+    const isSelected = i === game.choiceIndex;
+    const x = 40;
+    const y = startY + i * lineHeight;
+    
+    // Desenha fundo da opção selecionada
+    if (isSelected) {
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+      ctx.fillRect(x - 20, y - 15, 500, 25);
+    }
+    
+    // Desenha o marcador e o texto
+    ctx.fillStyle = isSelected ? '#FFD700' : '#aaa';
+    ctx.font = isSelected ? 'bold 14px Arial' : '14px Arial';
+    ctx.fillText((isSelected ? '► ' : '  ') + current.choices[i].text, x, y);
+  }
+  
+  ctx.fillStyle = '#888';
+  ctx.font = '12px Arial';
+  ctx.fillText('Use ↑/↓ ou ←/→ para escolher, ENTER para confirmar', 20, canvas.height - 10);
+}
+
+// DESENHA O FINAL
 function drawEnding() {
   ctx.fillStyle = '#0a0a0a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -175,27 +232,41 @@ function drawEnding() {
     ctx.font = '14px Arial';
     ctx.fillStyle = '#fff';
     ctx.fillText('Sara compreendeu: ciência não nega fé, apenas a nao mede.', canvas.width / 2, 150);
-    ctx.fillText('Juntas, Sara e Lia comeraum nova era de compreensao.', canvas.width / 2, 180);
+    ctx.fillText('Juntas, Sara e Lia comecaram uma nova era de compreensao.', canvas.width / 2, 180);
   }
   
   ctx.font = '12px Arial';
   ctx.fillText('Fé: ' + game.faith + ' | Ciência: ' + game.science, canvas.width / 2, canvas.height - 50);
 }
 
+// ATUALIZA O ESTADO DO JOGO
 function update() {
+  // Menu -> Diálogo
   if (game.state === GAME_STATE.MENU && game.keys[' ']) {
     game.state = GAME_STATE.DIALOG;
+    game.choiceIndex = 0;
   }
-  if (game.state === GAME_STATE.DIALOG && game.keys['Enter']) {
-    handleChoice({ key: 'Enter' });
+  
+  // Diálogo: verifica se tem opções para ir para CHOICE
+  if (game.state === GAME_STATE.DIALOG) {
+    const current = dialogues[game.dialog] || { choices: [] };
+    if (current.choices && current.choices.length > 0) {
+      game.state = GAME_STATE.CHOICE;
+    }
   }
 }
 
+// DESENHA NA TELA
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   if (game.state === GAME_STATE.MENU) {
     drawMenu();
+  } else if (game.state === GAME_STATE.CHOICE) {
+    // Desenha como diálogo mas com choices visíveis
+    ctx.fillStyle = 'rgba(10, 10, 20, 0.9)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawDialog();
   } else if (game.state === GAME_STATE.DIALOG) {
     ctx.fillStyle = 'rgba(10, 10, 20, 0.9)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -205,6 +276,7 @@ function draw() {
   }
 }
 
+// LOOP DO JOGO
 function gameLoop() {
   update();
   draw();
