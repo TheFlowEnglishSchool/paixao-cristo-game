@@ -1,5 +1,4 @@
-// ECOS DO GÓLGOTA - RPG Narrativo 2D
-// Desenvolvedor: TheFlow English School
+Atualiza para Versão 2.0: Adiciona sistema de transição, save/load e expansão da história// Desenvolvedor: TheFlow English School
 // Narrativa: Uma jornada científica que desafia a razão
 
 const canvas = document.getElementById('gameCanvas');
