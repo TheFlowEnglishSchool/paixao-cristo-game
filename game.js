@@ -1,286 +1,364 @@
-// Atualiza para Versão 2.0: Adiciona sistema de transição, save/load e expansão da história
-// Desenvolvedor: TheFlow English School
-// Narrativa: Uma jornada científica que desafia a razão
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Ecos do Gólgota</title>
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+<style>
 
-// ESTADOS DO JOGO
-const GAME_STATE = {
-  MENU: 'menu',
-  LABORATORY: 'laboratory',
-  DIALOG: 'dialog',
-  MEMORY: 'memory',
-  CHOICE: 'choice',
-  ENDING: 'ending'
-};
-
-// DADOS GLOBAIS
-const game = {
-  state: GAME_STATE.MENU,
-  scene: 0,
-  dialog: 0,
-  choiceIndex: 0,  // NOVO: índice da seleção atual
-  faith: 0,
-  science: 0,
-  playerX: 400,
-  playerY: 225,
-  keys: {}
-};
-
-// CENAS DE DIÁLOGO
-const dialogues = [
-  {
-    title: 'LAB - 3500 d.C.',
-    character: 'Dra. Sara',
-    text: 'O cérebro é apenas química. A alma, uma ilusao neuronal.',
-    choices: [
-      { text: 'Continuar a sessao', next: 1, action: 'science' },
-      { text: 'Parar o experimento', next: 'menu', action: 'faith' }
-    ]
-  },
-  {
-    title: 'LAB - 3500 d.C.',
-    character: 'Lia (Assistente)',
-    text: 'Doutora, os dados... não fazem sentido. É como se...',
-    choices: [
-      { text: 'Aumentar a potencia', next: 2, action: 'science' },
-      { text: 'Reconhecer o anormal', next: 3, action: 'faith' }
-    ]
-  },
-  {
-    title: 'MEMÓRIA - Jerusalem, 33 d.C.',
-    character: 'Mulher de Jer. (Sara vivenciando)',
-    text: 'Seu rosto... não é como os pregadores descrevem... É uma dor infinita.',
-    choices: [
-      { text: 'Tentar manter distância científica', next: 4, action: 'science' },
-      { text: 'Deixar as lágrimas caírem', next: 5, action: 'faith' }
-    ]
-  },
-  {
-    title: 'MEMÓRIA - Calvário',
-    character: 'Centurião (Sara vivenciando)',
-    text: 'Nenhum homem morre desse jeito... A escuridão não é natural.',
-    choices: [
-      { text: 'Explicar como fenômeno solar', next: 6, action: 'science' },
-      { text: 'Aceitar que é divino', next: 7, action: 'faith' }
-    ]
-  },
-  {
-    title: 'MEMÓRIA - A Cruz',
-    character: 'Maria (Sara vivenciando)',
-    text: 'Meu filho... Não há palavras. Só dor que cria vida nova.',
-    choices: [
-      { text: 'Isso é apenas tristeza biológica', next: 8, action: 'science' },
-      { text: 'Isso é amor redentor', next: 9, action: 'faith' }
-    ]
-  },
-  {
-    title: 'EPIFANIA',
-    character: 'Dra. Sara (De volta ao Lab)',
-    text: 'A máquina desligou. Meus sensores... estão danificados. Mas minha mente...',
-    choices: [
-      { text: 'Negar tudo - Retornar aos dados', next: 'ending_science', action: 'science' },
-      { text: 'Aceitar a transcendência', next: 'ending_faith', action: 'faith' },
-      { text: 'Buscar uma síntese', next: 'ending_synthesis', action: 'faith' }
-    ]
-  }
-];
-
-// CONTROLE DE ENTRADA
-window.addEventListener('keydown', (e) => {
-  game.keys[e.key] = true;
-  
-  // Se está no estado CHOICE, processa navegação das escolhas
-  if (game.state === GAME_STATE.CHOICE) {
-    const current = dialogues[game.dialog];
-    const numChoices = current.choices.length;
-    
-    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-      game.choiceIndex = (game.choiceIndex - 1 + numChoices) % numChoices;
-    } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-      game.choiceIndex = (game.choiceIndex + 1) % numChoices;
-    } else if (e.key === 'Enter' || e.key === ' ') {
-      handleChoice(game.choiceIndex);
-    }
-  }
-});
-
-window.addEventListener('keyup', (e) => {
-  game.keys[e.key] = false;
-});
-
-// PROCESSA A ESCOLHA SELECIONADA
-function handleChoice(choiceIndex) {
-  const current = dialogues[game.dialog];
-  if (current.choices.length > choiceIndex) {
-    const choice = current.choices[choiceIndex];
-    
-    // Atualiza fé ou ciência
-    if (choice.action === 'science') game.science++;
-    if (choice.action === 'faith') game.faith++;
-    
-    // Move para próxima cena
-    game.dialog = typeof choice.next === 'string' ? choice.next : choice.next;
-    
-    // Reinicia o índice de seleção
-    game.choiceIndex = 0;
-    
-    // Vai para DIALOG (que depois detectará se há choices e entrará em CHOICE)
-    game.state = GAME_STATE.DIALOG;
-  }
+body{
+margin:0;
+background:#000;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+font-family:Arial;
 }
 
-// DESENHA O MENU
-function drawMenu() {
-  ctx.fillStyle = '#0a0a0a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 48px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('ECOS DO GÓLGOTA', canvas.width / 2, 100);
-  
-  ctx.fillStyle = '#fff';
-  ctx.font = '16px Arial';
-  ctx.fillText('Um jogo de Fé e Ciência', canvas.width / 2, 140);
-  ctx.fillText('Pressione ESPAÇO para começar', canvas.width / 2, 380);
-  
-  ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
-  ctx.fillRect(canvas.width / 2 - 100, 220, 200, 120);
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'italic 14px Arial';
-  ctx.fillText('A Doutora Sara pensava que sabia', canvas.width / 2, 260);
-  ctx.fillText('tudo sobre a história.', canvas.width / 2, 280);
-  ctx.fillText('Até descobrir que a história', canvas.width / 2, 300);
-  ctx.fillText('a conhecia primeiro.', canvas.width / 2, 320);
+canvas{
+border:3px solid gold;
+background:#0a0a0a;
 }
 
-// DESENHA O DIÁLOGO E OPÇÕES
-function drawDialog() {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-  ctx.fillRect(0, canvas.height - 200, canvas.width, 200);
-  
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText(dialogues[game.dialog].title, 20, canvas.height - 180);
-  
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 16px Arial';
-  ctx.fillText(dialogues[game.dialog].character + ':', 20, canvas.height - 160);
-  
-  ctx.font = '14px Arial';
-  ctx.fillText(dialogues[game.dialog].text, 20, canvas.height - 140);
-  
-  // NOVO: desenha as opções de escolha
-  drawChoices();
+</style>
+</head>
+
+<body>
+
+<canvas id="gameCanvas" width="900" height="500"></canvas>
+
+<script>
+
+const canvas = document.getElementById('gameCanvas')
+const ctx = canvas.getContext('2d')
+
+const GAME_STATE={
+MENU:"menu",
+LABORATORY:"lab",
+DIALOG:"dialog",
+CHOICE:"choice",
+ENDING:"ending"
 }
 
-// NOVO: DESENHA AS OPÇÕES COM SELEÇÃO VISUAL
-function drawChoices() {
-  const current = dialogues[game.dialog];
-  if (!current.choices || current.choices.length === 0) return;
-  
-  const startY = canvas.height - 90;
-  const lineHeight = 30;
-  
-  for (let i = 0; i < current.choices.length; i++) {
-    const isSelected = i === game.choiceIndex;
-    const x = 40;
-    const y = startY + i * lineHeight;
-    
-    // Desenha fundo da opção selecionada
-    if (isSelected) {
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
-      ctx.fillRect(x - 20, y - 15, 500, 25);
-    }
-    
-    // Desenha o marcador e o texto
-    ctx.fillStyle = isSelected ? '#FFD700' : '#aaa';
-    ctx.font = isSelected ? 'bold 14px Arial' : '14px Arial';
-    ctx.fillText((isSelected ? '► ' : '  ') + current.choices[i].text, x, y);
-  }
-  
-  ctx.fillStyle = '#888';
-  ctx.font = '12px Arial';
-  ctx.fillText('Use ↑/↓ ou ←/→ para escolher, ENTER para confirmar', 20, canvas.height - 10);
+const game={
+state:GAME_STATE.MENU,
+dialog:0,
+choiceIndex:0,
+faith:0,
+science:0,
+playerX:200,
+playerY:250,
+speed:3,
+keys:{}
 }
 
-// DESENHA O FINAL
-function drawEnding() {
-  ctx.fillStyle = '#0a0a0a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 36px Arial';
-  ctx.textAlign = 'center';
-  
-  if (game.dialog === 'ending_science') {
-    ctx.fillText('A NEGACAO', canvas.width / 2, 100);
-    ctx.font = '14px Arial';
-    ctx.fillStyle = '#fff';
-    ctx.fillText('Sara voltou aos dados. Negou tudo.', canvas.width / 2, 150);
-    ctx.fillText('Seu laboratório agora é um túmulo de certezas.', canvas.width / 2, 180);
-  } else if (game.dialog === 'ending_faith') {
-    ctx.fillText('A TRANSCENDENCIA', canvas.width / 2, 100);
-    ctx.font = '14px Arial';
-    ctx.fillStyle = '#fff';
-    ctx.fillText('Lia a encontrou chorando no chão do laboratório.', canvas.width / 2, 150);
-    ctx.fillText('Pela primeira vez, a Doutora Sara rendeu-se ao impossível.', canvas.width / 2, 180);
-  } else if (game.dialog === 'ending_synthesis') {
-    ctx.fillText('A SINTESE', canvas.width / 2, 100);
-    ctx.font = '14px Arial';
-    ctx.fillStyle = '#fff';
-    ctx.fillText('Sara compreendeu: ciência não nega fé, apenas a nao mede.', canvas.width / 2, 150);
-    ctx.fillText('Juntas, Sara e Lia comecaram uma nova era de compreensao.', canvas.width / 2, 180);
-  }
-  
-  ctx.font = '12px Arial';
-  ctx.fillText('Fé: ' + game.faith + ' | Ciência: ' + game.science, canvas.width / 2, canvas.height - 50);
+function saveGame(){
+localStorage.setItem("golgota_save",JSON.stringify(game))
 }
 
-// ATUALIZA O ESTADO DO JOGO
-function update() {
-  // Menu -> Diálogo
-  if (game.state === GAME_STATE.MENU && game.keys[' ']) {
-    game.state = GAME_STATE.DIALOG;
-    game.choiceIndex = 0;
-  }
-  
-  // Diálogo: verifica se tem opções para ir para CHOICE
-  if (game.state === GAME_STATE.DIALOG) {
-    const current = dialogues[game.dialog] || { choices: [] };
-    if (current.choices && current.choices.length > 0) {
-      game.state = GAME_STATE.CHOICE;
-    }
-  }
+function loadGame(){
+let save=localStorage.getItem("golgota_save")
+if(save){
+Object.assign(game,JSON.parse(save))
+}
 }
 
-// DESENHA NA TELA
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  if (game.state === GAME_STATE.MENU) {
-    drawMenu();
-  } else if (game.state === GAME_STATE.CHOICE) {
-    // Desenha como diálogo mas com choices visíveis
-    ctx.fillStyle = 'rgba(10, 10, 20, 0.9)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    drawDialog();
-  } else if (game.state === GAME_STATE.DIALOG) {
-    ctx.fillStyle = 'rgba(10, 10, 20, 0.9)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    drawDialog();
-  } else if (game.state === GAME_STATE.ENDING || typeof game.dialog === 'string') {
-    drawEnding();
-  }
+loadGame()
+
+const dialogues=[
+
+{
+title:"LAB - 3500 d.C.",
+character:"Dra. Sara",
+text:"O cérebro é apenas química. A alma uma ilusão neuronal.",
+choices:[
+{text:"Continuar experimento",next:1,action:"science"},
+{text:"Parar experimento",next:2,action:"faith"}
+]
+},
+
+{
+title:"LAB",
+character:"Lia",
+text:"Doutora, os dados não fazem sentido.",
+choices:[
+{text:"Aumentar potência",next:3,action:"science"},
+{text:"Reconhecer anormal",next:3,action:"faith"}
+]
+},
+
+{
+title:"LAB",
+character:"Sara",
+text:"Talvez exista algo além do que podemos medir.",
+choices:[
+{text:"Voltar aos dados",next:3,action:"science"},
+{text:"Investigar memória",next:3,action:"faith"}
+]
+},
+
+{
+title:"MEMÓRIA - Jerusalém",
+character:"Mulher",
+text:"Você também veio ver o homem chamado Jesus?",
+choices:[
+{text:"Observar cientificamente",next:4,action:"science"},
+{text:"Sentir a experiência",next:4,action:"faith"}
+]
+},
+
+{
+title:"Calvário",
+character:"Centurião",
+text:"Verdadeiramente este homem era justo.",
+choices:[
+{text:"Fenômeno psicológico",next:5,action:"science"},
+{text:"Algo divino aconteceu",next:5,action:"faith"}
+]
+},
+
+{
+title:"EPIFANIA",
+character:"Sara",
+text:"Ciência mede o universo, mas não mede o amor que vi naquela cruz.",
+choices:[
+{text:"Negar transcendência",next:"ending_science",action:"science"},
+{text:"Aceitar fé",next:"ending_faith",action:"faith"},
+{text:"Unir fé e ciência",next:"ending_synthesis",action:"faith"}
+]
 }
 
-// LOOP DO JOGO
-function gameLoop() {
-  update();
-  draw();
-  requestAnimationFrame(gameLoop);
+]
+
+window.addEventListener("keydown",e=>{
+
+game.keys[e.key]=true
+
+if(game.state===GAME_STATE.CHOICE){
+
+let current=dialogues[game.dialog]
+let total=current.choices.length
+
+if(e.key==="ArrowUp") game.choiceIndex=(game.choiceIndex-1+total)%total
+if(e.key==="ArrowDown") game.choiceIndex=(game.choiceIndex+1)%total
+
+if(e.key==="Enter") handleChoice(game.choiceIndex)
+
 }
 
-gameLoop();
+})
+
+window.addEventListener("keyup",e=>{
+game.keys[e.key]=false
+})
+
+function handleChoice(i){
+
+let current=dialogues[game.dialog]
+let choice=current.choices[i]
+
+if(choice.action==="science") game.science++
+if(choice.action==="faith") game.faith++
+
+if(typeof choice.next==="string"){
+game.dialog=choice.next
+game.state=GAME_STATE.ENDING
+}else{
+game.dialog=choice.next
+game.state=GAME_STATE.DIALOG
+}
+
+game.choiceIndex=0
+saveGame()
+
+}
+
+function drawMenu(){
+
+ctx.fillStyle="#000"
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+ctx.fillStyle="gold"
+ctx.font="50px Arial"
+ctx.textAlign="center"
+
+ctx.fillText("ECOS DO GÓLGOTA",450,150)
+
+ctx.fillStyle="#fff"
+ctx.font="20px Arial"
+
+ctx.fillText("Pressione ESPAÇO",450,300)
+
+}
+
+function drawLab(){
+
+ctx.fillStyle="#1a1a2e"
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+ctx.fillStyle="#333"
+ctx.fillRect(450,200,120,80)
+
+ctx.fillStyle="cyan"
+ctx.fillRect(490,230,30,30)
+
+ctx.fillStyle="white"
+ctx.fillRect(game.playerX,game.playerY,25,25)
+
+ctx.fillStyle="#fff"
+ctx.font="14px Arial"
+
+ctx.fillText("Use as setas para andar até o computador",20,30)
+
+}
+
+function wrapText(text,x,y,maxWidth,lineHeight){
+
+let words=text.split(" ")
+let line=""
+
+for(let n=0;n<words.length;n++){
+
+let testLine=line+words[n]+" "
+let width=ctx.measureText(testLine).width
+
+if(width>maxWidth && n>0){
+ctx.fillText(line,x,y)
+line=words[n]+" "
+y+=lineHeight
+}else{
+line=testLine
+}
+
+}
+
+ctx.fillText(line,x,y)
+
+}
+
+function drawDialog(){
+
+let d=dialogues[game.dialog]
+
+ctx.fillStyle="rgba(0,0,0,0.8)"
+ctx.fillRect(0,350,900,150)
+
+ctx.fillStyle="gold"
+ctx.font="bold 16px Arial"
+ctx.fillText(d.title,20,380)
+
+ctx.fillStyle="#fff"
+ctx.font="bold 18px Arial"
+ctx.fillText(d.character+":",20,405)
+
+ctx.font="16px Arial"
+wrapText(d.text,20,430,800,20)
+
+drawChoices()
+
+}
+
+function drawChoices(){
+
+let current=dialogues[game.dialog]
+
+let startY=450
+
+for(let i=0;i<current.choices.length;i++){
+
+let y=startY+i*25
+let selected=i===game.choiceIndex
+
+ctx.fillStyle=selected?"gold":"#aaa"
+ctx.font=selected?"bold 16px Arial":"16px Arial"
+
+ctx.fillText((selected?"► ":"  ")+current.choices[i].text,40,y)
+
+}
+
+}
+
+function drawEnding(){
+
+ctx.fillStyle="#000"
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+ctx.fillStyle="gold"
+ctx.font="40px Arial"
+ctx.textAlign="center"
+
+if(game.dialog==="ending_science"){
+ctx.fillText("FINAL: A NEGAÇÃO",450,200)
+}
+
+if(game.dialog==="ending_faith"){
+ctx.fillText("FINAL: A FÉ",450,200)
+}
+
+if(game.dialog==="ending_synthesis"){
+ctx.fillText("FINAL: A SÍNTESE",450,200)
+}
+
+ctx.fillStyle="#fff"
+ctx.font="18px Arial"
+
+ctx.fillText("Fé: "+game.faith+" | Ciência: "+game.science,450,260)
+ctx.fillText("Atualize a página para jogar novamente",450,320)
+
+}
+
+function update(){
+
+if(game.state===GAME_STATE.MENU && game.keys[" "]){
+game.state=GAME_STATE.LABORATORY
+}
+
+if(game.state===GAME_STATE.LABORATORY){
+
+if(game.keys["ArrowLeft"]) game.playerX-=game.speed
+if(game.keys["ArrowRight"]) game.playerX+=game.speed
+if(game.keys["ArrowUp"]) game.playerY-=game.speed
+if(game.keys["ArrowDown"]) game.playerY+=game.speed
+
+if(game.playerX>450){
+game.state=GAME_STATE.DIALOG
+}
+
+}
+
+if(game.state===GAME_STATE.DIALOG){
+game.state=GAME_STATE.CHOICE
+}
+
+}
+
+function draw(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+if(game.state===GAME_STATE.MENU) drawMenu()
+
+if(game.state===GAME_STATE.LABORATORY) drawLab()
+
+if(game.state===GAME_STATE.DIALOG || game.state===GAME_STATE.CHOICE) drawDialog()
+
+if(game.state===GAME_STATE.ENDING) drawEnding()
+
+}
+
+function loop(){
+
+update()
+draw()
+
+requestAnimationFrame(loop)
+
+}
+
+loop()
+
+</script>
+
+</body>
+</html>
